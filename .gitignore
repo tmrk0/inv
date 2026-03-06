@@ -1,0 +1,38 @@
+# Python
+.env
+*.pyc
+__pycache__/
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+*.pkl
+*.h5
+*.model
+
+# Data
+data/raw/
+data/cache/
+*.csv
+*.parquet
+
+# Node
+node_modules/
+.next/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+*.pem
+*.key
+secrets/
