@@ -12,11 +12,12 @@ from loguru import logger
 
 # 미국 금융 뉴스 RSS
 US_FEEDS = {
-    "reuters_markets":   "https://feeds.reuters.com/reuters/businessNews",
-    "seeking_alpha":     "https://seekingalpha.com/market_currents.xml",
-    "marketwatch":       "https://feeds.content.dowjones.io/public/rss/mw_realtimeheadlines",
-    "yahoo_finance":     "https://finance.yahoo.com/news/rssindex",
+    "yahoo_finance":  "https://finance.yahoo.com/news/rssindex",
+    "marketwatch":    "https://feeds.content.dowjones.io/public/rss/mw_realtimeheadlines",
+    "seeking_alpha":  "https://seekingalpha.com/market_currents.xml",
 }
+
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36"
 
 # 한국 금융 뉴스 RSS
 KR_FEEDS = {
@@ -42,10 +43,13 @@ def fetch_rss_news(
         [{title, summary, link, published, source}]
     """
     try:
-        feed = feedparser.parse(feed_url)
+        feed = feedparser.parse(feed_url, agent=USER_AGENT)
         articles = []
 
-        for entry in feed.entries[:limit]:
+        # 키워드 필터링 시 전체 엔트리 스캔, 아니면 limit 적용
+        entries = feed.entries if keywords else feed.entries[:limit]
+
+        for entry in entries:
             title = entry.get("title", "")
             summary = entry.get("summary", entry.get("description", ""))
             link = entry.get("link", "")
@@ -64,12 +68,24 @@ def fetch_rss_news(
                 "source": feed.feed.get("title", feed_url),
             })
 
-        logger.info(f"Fetched {len(articles)} articles from {feed_url[:60]}")
-        return articles
+        result = articles[:limit]
+        logger.info(f"Fetched {len(result)} articles from {feed_url[:60]}")
+        return result
 
     except Exception as e:
         logger.error(f"RSS fetch failed {feed_url}: {e}")
         return []
+
+
+def fetch_ticker_news_us(ticker: str, limit: int = 10) -> list[dict]:
+    """Yahoo Finance 종목별 뉴스 RSS (미국 종목 전용)
+
+    Args:
+        ticker: 티커 심볼 (예: "AAPL", "SPY")
+        limit: 최대 기사 수
+    """
+    url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US"
+    return fetch_rss_news(url, limit=limit)
 
 
 def fetch_all_news(
@@ -80,28 +96,35 @@ def fetch_all_news(
     """전체 피드에서 뉴스 수집
 
     Args:
-        tickers: 관심 종목/키워드 (예: ["AAPL", "nvidia"], ["삼성전자"])
+        tickers: 관심 종목/키워드 (예: ["AAPL", "SPY"], ["삼성전자"])
         limit_per_feed: 피드당 최대 기사 수
         market: "us" (기본) | "kr" | "all"
 
     Returns:
         뉴스 리스트 (시간 역순, 중복 제거)
     """
-    feeds = {}
-    if market in ("us", "all"):
-        feeds.update(US_FEEDS)
-    if market in ("kr", "all"):
-        feeds.update(KR_FEEDS)
-
     all_articles = []
     seen_links = set()
 
-    for name, url in feeds.items():
-        articles = fetch_rss_news(url, limit=limit_per_feed, keywords=tickers)
+    def add_articles(articles):
         for article in articles:
             if article["link"] not in seen_links:
                 seen_links.add(article["link"])
                 all_articles.append(article)
+
+    if market in ("us", "all") and tickers:
+        # 미국 종목: Yahoo Finance 종목별 RSS 사용
+        for ticker in tickers:
+            add_articles(fetch_ticker_news_us(ticker, limit=limit_per_feed))
+    elif market in ("us", "all"):
+        # 종목 미지정 시 일반 US 피드 (키워드 필터 없음)
+        for url in US_FEEDS.values():
+            add_articles(fetch_rss_news(url, limit=limit_per_feed))
+
+    if market in ("kr", "all"):
+        # 한국: 일반 피드 + 키워드 필터
+        for url in KR_FEEDS.values():
+            add_articles(fetch_rss_news(url, limit=limit_per_feed, keywords=tickers))
 
     logger.info(f"Total: {len(all_articles)} unique articles (market={market})")
     return sorted(all_articles, key=lambda x: x["published"], reverse=True)

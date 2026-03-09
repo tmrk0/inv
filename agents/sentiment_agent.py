@@ -23,14 +23,16 @@ def run_sentiment_agent(
     ticker_names: list[str],
     include_dart: bool = True,
     news_limit: int = 10,
+    market: str = "us",
 ) -> dict:
     """감성 분석 에이전트 실행
 
     Args:
-        tickers: 종목 코드 리스트 (예: ["005930", "000660"])
-        ticker_names: 종목명 리스트 (예: ["삼성전자", "SK하이닉스"])
-        include_dart: DART 공시 포함 여부
-        news_limit: 뉴스 수집 수
+        tickers: 종목 코드 리스트 (예: ["SPY", "AAPL"])
+        ticker_names: 종목명/키워드 리스트
+        include_dart: DART 공시 포함 여부 (한국 종목만 해당)
+        news_limit: 피드당 뉴스 수집 수
+        market: "us" | "kr" | "all"
 
     Returns:
         종목별 신호 딕셔너리
@@ -42,7 +44,7 @@ def run_sentiment_agent(
         logger.info(f"Analyzing: {name} ({ticker})")
 
         # 1. 뉴스 수집
-        articles = fetch_all_news(tickers=[name], limit_per_feed=news_limit)
+        articles = fetch_all_news(tickers=[name], limit_per_feed=news_limit, market=market)
         logger.info(f"Found {len(articles)} news articles")
 
         # 2. DART 공시 수집 (선택)
