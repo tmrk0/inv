@@ -4,7 +4,7 @@ FastAPI 서버 — inv 퀀트 플랫폼 API
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import sentiment, backtest, signal
+from api.routes import sentiment, backtest, signal, trade
 
 app = FastAPI(
     title="inv Quant Platform API",
@@ -21,8 +21,9 @@ app.add_middleware(
 )
 
 app.include_router(sentiment.router, prefix="/api/sentiment", tags=["Sentiment"])
-app.include_router(backtest.router, prefix="/api/backtest", tags=["Backtest"])
-app.include_router(signal.router, prefix="/api/signal", tags=["Signal"])
+app.include_router(backtest.router,  prefix="/api/backtest",  tags=["Backtest"])
+app.include_router(signal.router,    prefix="/api/signal",    tags=["Signal"])
+app.include_router(trade.router,     prefix="/api/trade",     tags=["Trade"])
 
 
 @app.get("/")
